@@ -1,60 +1,98 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#define MAX_FILE_SIZE 4096      // Макс. размер файла со скриптом
+#define MAX_LINE_LENGTH 64      // Макс. длина строки кода
+#define VAR_STORAGE_SIZE 64     // Макс. кол-во переменных
+#define VAR_MEMORY 128           // Сколько памяти выделить для названия переменной
+
+char varNames[VAR_STORAGE_SIZE][VAR_MEMORY/2];          // Массив с названиями переменных
+long int varValues[VAR_STORAGE_SIZE];                   // Массив со значениями переменных
+int varCount = 0;
 
 // Получение команды для чтения (параметр index указывает, с какого индекса начать читать)
 void getCommand(char* script, int index) {
-    printf("%s\n", script);
+    char currentCommand[16];
+    int cci = 0; // cci - Current Command Index
+    for (int i = index; i != '\0'; i++) {
+        if (script[i] == ' ') continue;
+        if (!isalpha(script[i])) {
+            if (script[i] == '(') {
+                // seekArgs(script, i, !!!!TOSEEK!!!!);
+            }
+            printf("Error! Unexpected symbol '%c' at line %d, column %d", script[i], i, i);
+        }
+        currentCommand[cci] = script[i];
+    }
     return;
 }
 
 // Получение аргументов/параметров для операторов
-void seek(char* script, int index) {
+void seekArgs(char *script, int index, char *toSeek) {
+    char current;
+    for (int i = index; (script[i] != ')') && (script[i] != '\0'); i++) {
+        continue;
+    }
     return;
 }
 
-void print(char* arg) {
-
+void print(char *arg) {
+    printf("%s\n", arg);
+    return;
 }
 
-void read(char* arg) {
-
+char *read(char* title) {
+    char result[64];
+    scanf(title, &result);
+    const char *toreturn = malloc(64);
+    return result;
 }
 
-void throwError(int errorCode, int arg1, int arg2, char arg3) {
-    switch(errorCode) {
-        case 1:
-            printf("Error! Unexpected symbol '%c' at line %d, column %d", arg3, arg1, arg2);
-            break;
-        case 2:
-            printf("Error! Missing semicolon at line %d, column %d", arg1, arg2);
-            break;
-        default:
-            printf("Error! Something went wrong... check the script file.");
-            break;
+int getVar(char* name) {
+    for (int i = 0; i < varCount; i++) {
+        if (strcmp(varNames[i], name) == 0) {
+            int result = varValues[i];
+            return result;
+        }
     }
-    printf("\n");
+    printf("Error! Variable '%s' not found!\n", name);
+    return 0;
+}
+
+int setVar(char* name, int value) {
+    for (int i = 0; i < varCount; i++) {    // Поиск переменной, чтобы изменить её значение
+        if (strcmp(varNames[i], name) == 0) {
+            varValues[i] = value;
+            return 1;
+        }
+    }
+    // Далее идёт создание переменной, если она не найдена
+    if (varCount < VAR_STORAGE_SIZE) {
+        strcpy(varNames[varCount], name);
+        varValues[varCount++] = value;
+    } else {
+        printf("Error! Too many variables! Max: %d", VAR_STORAGE_SIZE); // Если превышен лимит переменных, выдаёт ошибку
+        return 0;
+    }
+    return 1;
 }
 
 int main(void) {
-    const int MAX_FILE_SIZE = 1024;
+    printf("START\n");
 
+    char rawScript[MAX_FILE_SIZE];
     FILE *fp;
     fp = fopen("script.al", "r");
-    // Строка со скриптом
-    char buff[MAX_FILE_SIZE];
-    fgets(buff, MAX_FILE_SIZE, (FILE*)fp);
+    fgets(rawScript, MAX_FILE_SIZE, (FILE*)fp);
     fclose(fp);
 
-                        // Убираются пробелы из кода (пока не знаю, пригодится ли это)
+    setVar("test", 123);
+    setVar("test2", 4345);
+    setVar("foofoofoo", 9000);
+    printf("%d\n%d\n%d\n", getVar("test"), getVar("test2"), getVar("foofoofoo"));
 
-                        // char readyToGo[MAX_FILE_SIZE];
-                        // int current = 0;
-                        
-                        // for (int i = 0; i < MAX_FILE_SIZE; i++) {
-                        //     if (buff[i] != ' ') {
-                        //         readyToGo[current++] = buff[i];
-                        //     }
-                        // }
-
+    // Это работает! Пора делать коммит.
 
     return 0;
 }
