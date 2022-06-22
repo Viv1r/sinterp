@@ -145,11 +145,11 @@ int read(char* title) {
     return result;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     printf("SCRIPT TO EXECUTE:\n");
 
     FILE *fp;
-    fp = fopen("script.txt", "r");
+    fp = fopen(argv[1], "r");
 
     int index = 0;
     while(fgets(script[index], MAX_LINE_LENGTH, fp)) 
