@@ -3,55 +3,106 @@
 #include <ctype.h>
 #include <string.h>
 #define MAX_FILE_SIZE 4096      // Макс. размер файла со скриптом
-#define MAX_LINE_LENGTH 64      // Макс. длина строки кода
+#define MAX_LINE_LENGTH 128      // Макс. длина строки кода
 #define VAR_STORAGE_SIZE 64     // Макс. кол-во переменных
-#define VAR_MEMORY 128           // Сколько памяти выделить для названия переменной
+#define VAR_NAME_MEMORY 64      // Сколько памяти выделить для названия переменной
 
-char varNames[VAR_STORAGE_SIZE][VAR_MEMORY/2];          // Массив с названиями переменных
+char varNames[VAR_STORAGE_SIZE][VAR_NAME_MEMORY];          // Массив с названиями переменных
 long int varValues[VAR_STORAGE_SIZE];                   // Массив со значениями переменных
-int varCount = 0;
+char script[MAX_FILE_SIZE][MAX_LINE_LENGTH];            // Массив со строками скрипта
+int varCount = 0,                                       // Количество переменных
+    lineCount = 0,                                      // Количество строк в скрипте
+    whileLoop = 0;                                      // Флаг, отвечающий за активность цикла while
 
-// Получение команды для чтения (параметр index указывает, с какого индекса начать читать)
-void getCommand(char* script, int index) {
-    char currentCommand[16];
-    int cci = 0; // cci - Current Command Index
-    for (int i = index; i != '\0'; i++) {
-        if (script[i] == ' ') continue;
-        if (!isalpha(script[i])) {
-            if (script[i] == '(') {
-                // seekArgs(script, i, !!!!TOSEEK!!!!);
-            }
-            printf("Error! Unexpected symbol '%c' at line %d, column %d", script[i], i, i);
-        }
-        currentCommand[cci] = script[i];
-    }
-    return;
+// Функция для проверки двух переменных string на равенство
+int eqStrings(char *str1, char *str2) {
+    return strcmp(str1, str2) == 0 ? 1 : 0;
 }
 
 // Получение аргументов/параметров для операторов
-void seekArgs(char *script, int index, char *toSeek) {
-    char current;
-    for (int i = index; (script[i] != ')') && (script[i] != '\0'); i++) {
-        continue;
+const char* seekArgs(int row, int col, int seekType) {
+    char result[64] = "";
+    if (seekType == 0) {    // Поиск наименования (буквы+цифры)
+        for (int i = col; script[row][i] != '\0'; i++) {
+            if (script[row][i] == ' ' && strlen(result) == 0) continue;
+            if (isalpha(script[row][i]) || isdigit(script[row][i])) {
+                result[strlen(result)] = script[row][i];
+            } else {
+                printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                break;
+            }
+        }
+    } else if (seekType == 1) {     // Поиск числа
+        for (int i = col; script[row][i] != '\0'; i++) {
+            if (script[row][i] == ' ' && strlen(result) == 0) continue;
+            if (isdigit(script[row][i])) {
+                result[strlen(result)] = script[row][i];
+            } else {
+                printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                break;
+            }
+        }
     }
+    char* toreturn = result;
+    return toreturn;
+}
+
+// Получение команды для чтения (параметр index указывает, с какого индекса начать читать)
+void getCommand(int index) {
+    char currentCommand[VAR_NAME_MEMORY] = "";
+    int cci = 0; // cci - Current Command Index
+    int i;       // индекс i сохраняю вне цикла, чтобы потом продолжить читать строку с него
+
+    // Делаю парсинг команды/переменной (выношу первое слово строки в переменную currentCommand)
+    for (i = 0; (script[index][i] != ' ' || strlen(currentCommand) == 0); i++) {
+        if (script[index][i] == ' ') continue;
+        if (isalpha(script[index][i]) || isdigit(script[index][i])) {
+            currentCommand[cci++] = script[index][i];
+        }
+    }
+
+    if (eqStrings(currentCommand, "read")) {
+        char varname[VAR_NAME_MEMORY] = "";
+        strcpy(varname, seekArgs(index, i, 0));
+        setVar(varname, read("Enter a number: "));
+    } else if (eqStrings(currentCommand, "write")) {
+        char varname[VAR_NAME_MEMORY] = "";
+        strcpy(varname, seekArgs(index, i, 0));
+        write(varname);
+    } else if (eqStrings(currentCommand, "while")) {
+        // char args = seekArgs(index, i, 1);
+    } else {
+        int flag = 0;
+        for (i; script[index][i] != '\0'; i++) {
+            if (script[index][i] == '=') {
+                char temp[64];
+                strcpy(temp, seekArgs(index, i+1, 1));
+                setVar(currentCommand, atoi(temp));
+                flag = 1; // Флаг, говорящий о том, что операция выполнена
+                break;
+            }
+        }
+        if (flag == 0) printf("Error! Command '%s' not found!\n", currentCommand);
+    }
+    /*
+    for (int j = i; script[index][j] != '\0'; j++) {
+        if (script[index][j] == ' ') {
+            
+            continue;
+        } else if (script[index][j] == '=') {
+            continue;
+        } else {
+            printf("[GC] Error! Unexpected symbol '%c' at line %d, column %d\n", script[index][j], index+1, j+1);
+            break;
+        }
+    } */
     return;
 }
 
-void print(char *arg) {
-    printf("%s\n", arg);
-    return;
-}
-
-char *read(char* title) {
-    char result[64];
-    scanf(title, &result);
-    const char *toreturn = malloc(64);
-    return result;
-}
-
+// Получение переменной по её названию
 int getVar(char* name) {
     for (int i = 0; i < varCount; i++) {
-        if (strcmp(varNames[i], name) == 0) {
+        if (eqStrings(varNames[i], name)) {
             int result = varValues[i];
             return result;
         }
@@ -60,9 +111,10 @@ int getVar(char* name) {
     return 0;
 }
 
+// Объявить переменную или изменить значение уже существующей
 int setVar(char* name, int value) {
     for (int i = 0; i < varCount; i++) {    // Поиск переменной, чтобы изменить её значение
-        if (strcmp(varNames[i], name) == 0) {
+        if (eqStrings(varNames[i], name)) {
             varValues[i] = value;
             return 1;
         }
@@ -70,29 +122,55 @@ int setVar(char* name, int value) {
     // Далее идёт создание переменной, если она не найдена
     if (varCount < VAR_STORAGE_SIZE) {
         strcpy(varNames[varCount], name);
-        varValues[varCount++] = value;
+        varValues[varCount] = value;
+        varCount++;
     } else {
-        printf("Error! Too many variables! Max: %d", VAR_STORAGE_SIZE); // Если превышен лимит переменных, выдаёт ошибку
+        printf("Error! Too many variables! Max: %d\n", VAR_STORAGE_SIZE); // Если превышен лимит переменных, выдаёт ошибку
         return 0;
     }
     return 1;
 }
 
-int main(void) {
-    printf("START\n");
+// Вывод значения переменной на экран
+void write(char* arg) {
+    printf("%d\n", getVar(arg));
+    return;
+}
 
-    char rawScript[MAX_FILE_SIZE];
+// Ввод значения пользователем
+int read(char* title) {
+    int result;
+    printf("%s", title);
+    scanf("%d", &result);
+    return result;
+}
+
+int main(void) {
+    printf("SCRIPT TO EXECUTE:\n");
+
     FILE *fp;
-    fp = fopen("script.al", "r");
-    fgets(rawScript, MAX_FILE_SIZE, (FILE*)fp);
+    fp = fopen("script.txt", "r");
+
+    int index = 0;
+    while(fgets(script[index], MAX_LINE_LENGTH, fp)) 
+	{
+        if (script[index][strlen(script[index]) - 1] == '\n') {
+            script[index][strlen(script[index]) - 1] = '\0';
+        } else {
+            script[index][strlen(script[index])] = '\0';
+        }
+        index++;
+    }
+    lineCount = index;
+
+    for (int i = 0; i < lineCount; i++) printf("||   %s\n", script[i]);
     fclose(fp);
 
-    setVar("test", 123);
-    setVar("test2", 4345);
-    setVar("foofoofoo", 9000);
-    printf("%d\n%d\n%d\n", getVar("test"), getVar("test2"), getVar("foofoofoo"));
-
-    // Это работает! Пора делать коммит.
+    printf("\nSTARTING...\n\n");
+    // Далее идёт выполнение скрипта
+    for (int i = 0; i < lineCount; i++) {
+        getCommand(i);
+    }
 
     return 0;
 }
