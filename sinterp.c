@@ -12,7 +12,13 @@ long int varValues[VAR_STORAGE_SIZE];                   // Массив со з�
 char script[MAX_FILE_SIZE][MAX_LINE_LENGTH];            // Массив со строками скрипта
 int varCount = 0,                                       // Количество переменных
     lineCount = 0,                                      // Количество строк в скрипте
-    whileLoop = 0;                                      // Флаг, отвечающий за активность цикла while
+    whileLoop = 0,                                      // Флаг, отвечающий за активность цикла while
+    crash = 0;                                          // Флаг, который активируется при ошибке (завершить работу программы)
+
+void quitProgram() {
+    printf("Goodbye!\n");
+    exit(0);
+}
 
 // Функция для проверки двух переменных string на равенство
 int eqStrings(char *str1, char *str2) {
@@ -29,7 +35,7 @@ const char* seekArgs(int row, int col, int seekType) {
                 result[strlen(result)] = script[row][i];
             } else {
                 printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
-                break;
+                quitProgram();
             }
         }
     } else if (seekType == 1) {     // Поиск числа
@@ -39,7 +45,7 @@ const char* seekArgs(int row, int col, int seekType) {
                 result[strlen(result)] = script[row][i];
             } else {
                 printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
-                break;
+                quitProgram();
             }
         }
     }
@@ -82,7 +88,10 @@ void getCommand(int index) {
                 break;
             }
         }
-        if (flag == 0) printf("Error! Command '%s' not found!\n", currentCommand);
+        if (flag == 0) {
+            printf("Error! Command '%s' not found!\n", currentCommand);
+            quitProgram();
+        }
     }
     /*
     for (int j = i; script[index][j] != '\0'; j++) {
@@ -93,7 +102,7 @@ void getCommand(int index) {
             continue;
         } else {
             printf("[GC] Error! Unexpected symbol '%c' at line %d, column %d\n", script[index][j], index+1, j+1);
-            break;
+            quitProgram();
         }
     } */
     return;
@@ -108,7 +117,7 @@ int getVar(char* name) {
         }
     }
     printf("Error! Variable '%s' not found!\n", name);
-    return 0;
+    quitProgram();
 }
 
 // Объявить переменную или изменить значение уже существующей
@@ -126,7 +135,7 @@ int setVar(char* name, int value) {
         varCount++;
     } else {
         printf("Error! Too many variables! Max: %d\n", VAR_STORAGE_SIZE); // Если превышен лимит переменных, выдаёт ошибку
-        return 0;
+        quitProgram();
     }
     return 1;
 }
@@ -146,7 +155,7 @@ int read(char* title) {
 }
 
 int main(int argc, char **argv) {
-    printf("SCRIPT TO EXECUTE:\n");
+    printf("SCRIPT TO EXECUTE (%s):\n", argv[1]);
 
     FILE *fp;
     fp = fopen(argv[1], "r");
