@@ -24,6 +24,13 @@ int eqStrings(char *str1, char *str2) {
     return strcmp(str1, str2) == 0 ? 1 : 0;
 }
 
+int hasLetters(char *str) {
+    for (int i = 0; i < strlen(str); i++) {
+        if isalpha(str[i]) return 1;
+    }
+    return 0;
+}
+
 // Получение аргументов/параметров для операторов
 const char* seekArgs(int row, int col, int seekType) {
     char result[64] = "";
@@ -81,8 +88,9 @@ void getCommand(int index) {
         for (i; script[index][i] != '\0'; i++) {
             if (script[index][i] == '=') {
                 char temp[64];
-                strcpy(temp, seekArgs(index, i+1, 1));
-                setVar(currentCommand, atoi(temp));
+                strcpy(temp, seekArgs(index, i+1, 0));
+                if (hasLetters(temp)) setVar(currentCommand, getVar(temp));
+                else setVar(currentCommand, atoi(temp));
                 flag = 1; // Флаг, говорящий о том, что операция выполнена
                 break;
             }
