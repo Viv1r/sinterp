@@ -7,7 +7,7 @@
 #define VAR_STORAGE_SIZE 64     // Макс. кол-во переменных
 #define VAR_NAME_MEMORY 64      // Сколько памяти выделить для названия переменной
 
-char varNames[VAR_STORAGE_SIZE][VAR_NAME_MEMORY];          // Массив с названиями переменных
+char varNames[VAR_STORAGE_SIZE][VAR_NAME_MEMORY];       // Массив с названиями переменных
 long int varValues[VAR_STORAGE_SIZE];                   // Массив со значениями переменных
 char script[MAX_FILE_SIZE][MAX_LINE_LENGTH];            // Массив со строками скрипта
 int currentLine,                                        // Текущая строка, на которой работает интерпретатор
@@ -43,6 +43,9 @@ int checkWhileCondition() {
             return operand1 < operand2;
         case '=':
             return operand1 == operand2;
+        default:
+            printf("Error! The '%c' operator can't be used for a while loop!\n", whileOperator);
+            quitProgram();
     }
 }
 
@@ -71,7 +74,7 @@ const char* seekArgs(int row, int col, int seekType) {
             if (isalpha(script[row][i]) || isdigit(script[row][i])) {
                 result[strlen(result)] = script[row][i];
             } else {
-                printf("[SA0] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
                 quitProgram();
             }
         }
@@ -81,7 +84,7 @@ const char* seekArgs(int row, int col, int seekType) {
             if (isdigit(script[row][i])) {
                 result[strlen(result)] = script[row][i];
             } else {
-                printf("[SA1] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
                 quitProgram();
             }
         }
@@ -89,6 +92,14 @@ const char* seekArgs(int row, int col, int seekType) {
     globalIndex = i;
     char* toreturn = result;
     return toreturn;
+}
+
+// Поиск ключевого слова "done" для активации цикла
+int findDone(int index) {
+    for (int i = index; i < lineCount; i++) {
+        if (eqStrings(seekArgs(i, 0, 0), "done")) return i;
+    }
+    return 0;
 }
 
 char seekOperator(int row, int col) {
@@ -102,7 +113,7 @@ char seekOperator(int row, int col) {
             globalIndex = i+2;
             return '=';
         } else {
-            printf("[SO] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+            printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
             quitProgram();
         }
     }
@@ -118,12 +129,26 @@ void getCommand(int index) {
 
     // Делаю парсинг команды/переменной (выношу первое слово строки в переменную currentCommand)
     for (i = 0; script[index][i] != '\0'; i++) {
+        if (isdigit(currentCommand[0])) {
+            printf("Error! Name of a variable cannot start with digit! (line %d, col %d)\n", index+1, i+1);
+            quitProgram();
+        }
         if (script[index][i] == ' ') {
             if (strlen(currentCommand) == 0) continue;
             else break;
         }
+        if (script[index][i] == '=') {
+            if (strlen(currentCommand) > 0) break;
+            else {
+                printf("Error! You cannot assign a value to nothing! (line %d, col %d)\n", index+1, i+1);
+                quitProgram();
+            }
+        }
         if (isalpha(script[index][i]) || isdigit(script[index][i])) {
             currentCommand[cci++] = script[index][i];
+        } else {
+            printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[index][i], index+1, i+1);
+            quitProgram();
         }
     }
 
@@ -138,7 +163,11 @@ void getCommand(int index) {
     } else if (eqStrings(currentCommand, "while")) {
         // Проверка на факт того, является ли цикл вложенным
         if (whileLoop) {
-            printf("Error! Nested loops are not allowed! (at line %d)\n", index);
+            printf("Error! Nested loops are not allowed! (at line %d)\n", index+1);
+            quitProgram();
+        }
+        if (!findDone(index+1)) {
+            printf("Error! Cannot activate the loop without a 'done' keyword!\n", index+1);
             quitProgram();
         }
         strcpy(whileOperand1, seekArgs(index, i, 0));
@@ -150,14 +179,15 @@ void getCommand(int index) {
         if (eqStrings(seekArgs(index, i, 0), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
             whileLoop = 1;
             whileIndex = index;
+            if (!checkWhileCondition()) currentLine = findDone(index+1);
             return;
         } else {
-            printf("Error! While loop is not declared properly! (missing 'do' at line %d)\n", index);
+            printf("Error! While loop is not declared properly! (missing 'do' at line %d)\n", index+1);
             quitProgram();
         }
     } else if (eqStrings(currentCommand, "done")) {
         if (!whileLoop) {
-            printf("Error! Unexpected 'done' operator at line %d!\n", index);
+            printf("Error! Unexpected 'done' operator at line %d!\n", index+1);
             quitProgram();
         }
         if (checkWhileCondition()) currentLine = whileIndex;
@@ -192,8 +222,8 @@ void getCommand(int index) {
             }
             temp += oper == '+' ? toAdd : -toAdd;
         } else if (oper != '0') {
-            if (oper == '=') printf("Error! Wrong operator '==' at line %d col %d!\n", index, i);
-            else printf("Error! Wrong operator '%c' at line %d col %d!\n", oper, index, i);
+            if (oper == '=') printf("Error! Wrong operator '==' at line %d col %d!\n", index+1, i+1);
+            else printf("Error! Wrong operator '%c' at line %d col %d!\n", oper, index+1, i+1);
             quitProgram();
         }
         setVar(currentCommand, temp);
@@ -248,11 +278,9 @@ int read(char* title) {
 }
 
 int main(int argc, char **argv) {
-    printf("SCRIPT TO EXECUTE (%s):\n", argv[1]);
 
     FILE *fp;
     fp = fopen(argv[1], "r");
-
     int index = 0;
     while(fgets(script[index], MAX_LINE_LENGTH, fp)) 
 	{
@@ -264,11 +292,8 @@ int main(int argc, char **argv) {
         index++;
     }
     lineCount = index;
-
-    for (int i = 0; i < lineCount; i++) printf("||   %s\n", script[i]);
     fclose(fp);
 
-    printf("\nSTARTING...\n\n");
     // Далее идёт выполнение скрипта
     for (currentLine = 0; currentLine < lineCount; currentLine++) {
         getCommand(currentLine);
