@@ -62,31 +62,19 @@ int has_letters(char *str) {
 }
 
 // Получение аргументов/параметров для операторов
-const char* seek_args(int row, int col, int seekType) {
+const char* seek_args(int row, int col) {
     char result[64] = "";
     int i;
-    if (seekType == 0) {    // Поиск наименования (буквы+цифры)
-        for (i = col; script[row][i] != '\0'; i++) {
-            if (script[row][i] == ' ') {
-                if (strlen(result) == 0) continue;
-                break;
-            }
-            if (isalpha(script[row][i]) || isdigit(script[row][i])) {
-                result[strlen(result)] = script[row][i];
-            } else {
-                printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
-                quit_program();
-            }
+    for (i = col; script[row][i] != '\0'; i++) {
+        if (script[row][i] == ' ') {
+            if (strlen(result) == 0) continue;
+            break;
         }
-    } else if (seekType == 1) {     // Поиск числа
-        for (i = col; script[row][i] != '\0'; i++) {
-            if (script[row][i] == ' ' && strlen(result) == 0) continue;
-            if (isdigit(script[row][i])) {
-                result[strlen(result)] = script[row][i];
-            } else {
-                printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
-                quit_program();
-            }
+        if (isalpha(script[row][i]) || isdigit(script[row][i])) {
+            result[strlen(result)] = script[row][i];
+        } else {
+            printf("Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+            quit_program();
         }
     }
     global_index = i;
@@ -97,7 +85,7 @@ const char* seek_args(int row, int col, int seekType) {
 // Поиск ключевого слова "done" для активации цикла
 int find_keyword(int start_index, char* keyword) {
     for (int i = start_index; i < line_count; i++) {
-        if (eq_strings(seek_args(i, 0, 0), keyword)) return i;
+        if (eq_strings(seek_args(i, 0), keyword)) return i;
     }
     return 0;
 }
@@ -154,11 +142,11 @@ void get_command(int index) {
 
     if (eq_strings(current_command, "read")) {
         char varname[VAR_NAME_MEMORY] = "";
-        strcpy(varname, seek_args(index, i, 0));
+        strcpy(varname, seek_args(index, i));
         set_var(varname, read("Enter a number: "));
     } else if (eq_strings(current_command, "write")) {
         char varname[VAR_NAME_MEMORY] = "";
-        strcpy(varname, seek_args(index, i, 0));
+        strcpy(varname, seek_args(index, i));
         write(varname);
     } else if (eq_strings(current_command, "while")) {
         // Проверка на факт того, является ли цикл вложенным
@@ -170,13 +158,13 @@ void get_command(int index) {
             printf("Error! Cannot activate the loop without a 'done' keyword!\n", index+1);
             quit_program();
         }
-        strcpy(while_operand_1, seek_args(index, i, 0));
+        strcpy(while_operand_1, seek_args(index, i));
         i = global_index;
         while_operator = seek_operator(index, i); // Оператор для операции
         i = global_index;
-        strcpy(while_operand_2, seek_args(index, i, 0));
+        strcpy(while_operand_2, seek_args(index, i));
         i = global_index;
-        if (eq_strings(seek_args(index, i, 0), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
+        if (eq_strings(seek_args(index, i), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
             while_loop_active = 1;
             while_index = index;
             if (!check_while_cond()) current_line = find_keyword(index+1, "done");
@@ -198,7 +186,7 @@ void get_command(int index) {
         for (i; script[index][i] != '\0'; i++) {
             if (script[index][i] == '=') {
                 char tempstr[VAR_NAME_MEMORY];
-                strcpy(tempstr, seek_args(index, i+1, 0));
+                strcpy(tempstr, seek_args(index, i+1));
                 i = global_index;
                 if (has_letters(tempstr)) temp += get_var(tempstr);  // Присваиваем значение другой переменной
                 else temp += atoi(tempstr);                        // Присваиваем числовое значение
@@ -214,7 +202,7 @@ void get_command(int index) {
         i = global_index;
         if (oper == '+' || oper == '-') {
             char args2[VAR_NAME_MEMORY];
-            strcpy(args2, seek_args(index, i, 0));
+            strcpy(args2, seek_args(index, i));
             int toAdd;
             if (strlen(args2) > 0) {
                 if (has_letters(args2)) toAdd = get_var(args2);  // Присваиваем значение другой переменной
