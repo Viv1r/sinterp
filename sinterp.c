@@ -10,14 +10,40 @@
 char varNames[VAR_STORAGE_SIZE][VAR_NAME_MEMORY];          // Массив с названиями переменных
 long int varValues[VAR_STORAGE_SIZE];                   // Массив со значениями переменных
 char script[MAX_FILE_SIZE][MAX_LINE_LENGTH];            // Массив со строками скрипта
-int varCount = 0,                                       // Количество переменных
+int currentLine,                                        // Текущая строка, на которой работает интерпретатор
+    varCount = 0,                                       // Количество переменных
     lineCount = 0,                                      // Количество строк в скрипте
     whileLoop = 0,                                      // Флаг, отвечающий за активность цикла while
+    whileIndex = 0,                                     // Номер строки, с которой начинается тело цикла while
     globalIndex = 0;                                    // Глобальный индекс для циклов, чтобы не заморачиваться с указателями
+
+char whileOperand1[VAR_NAME_MEMORY] = "",      // Первый операнд для условия цикла while (если он активен)
+     whileOperand2[VAR_NAME_MEMORY] = "";      // Второй операнд
+char whileOperator;                            // Оператор условия 
 
 void quitProgram() {
     printf("Goodbye!\n");
     exit(0);
+}
+
+// Проверка условий для цикла while
+int checkWhileCondition() {
+    int operand1, operand2;
+    
+    if (hasLetters(whileOperand1)) operand1 = getVar(whileOperand1);
+    else operand1 = atoi(whileOperand1);
+
+    if (hasLetters(whileOperand2)) operand2 = getVar(whileOperand2);
+    else operand2 = atoi(whileOperand2);
+
+    switch(whileOperator) {
+        case '>':
+            return operand1 > operand2;
+        case '<':
+            return operand1 < operand2;
+        case '=':
+            return operand1 == operand2;
+    }
 }
 
 // Функция для проверки двух переменных string на равенство
@@ -69,9 +95,12 @@ char seekOperator(int row, int col) {
     int i;
     for (i = col; script[row][i] != '\0'; i++) {
         if (script[row][i] == ' ') continue;
-        if (script[row][i] == '+' || script[row][i] == '-') {
+        if (script[row][i] == '+' || script[row][i] == '-' || script[row][i] == '>' || script[row][i] == '<') {
             globalIndex = i+1;
             return script[row][i];
+        } else if (script[row][i] == '=' && script[row][i+1] == '=') {
+            globalIndex = i+2;
+            return '=';
         } else {
             printf("[SO] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
             quitProgram();
@@ -88,8 +117,11 @@ void getCommand(int index) {
     globalIndex = 0;    // обнуляю global index на всякий случай
 
     // Делаю парсинг команды/переменной (выношу первое слово строки в переменную currentCommand)
-    for (i = 0; (script[index][i] != ' ' || strlen(currentCommand) == 0); i++) {
-        if (script[index][i] == ' ') continue;
+    for (i = 0; script[index][i] != '\0'; i++) {
+        if (script[index][i] == ' ') {
+            if (strlen(currentCommand) == 0) continue;
+            else break;
+        }
         if (isalpha(script[index][i]) || isdigit(script[index][i])) {
             currentCommand[cci++] = script[index][i];
         }
@@ -104,7 +136,32 @@ void getCommand(int index) {
         strcpy(varname, seekArgs(index, i, 0));
         write(varname);
     } else if (eqStrings(currentCommand, "while")) {
-        // char args = seekArgs(index, i, 1);
+        // Проверка на факт того, является ли цикл вложенным
+        if (whileLoop) {
+            printf("Error! Nested loops are not allowed! (at line %d)\n", index);
+            quitProgram();
+        }
+        strcpy(whileOperand1, seekArgs(index, i, 0));
+        i = globalIndex;
+        whileOperator = seekOperator(index, i); // Оператор для операции
+        i = globalIndex;
+        strcpy(whileOperand2, seekArgs(index, i, 0));
+        i = globalIndex;
+        if (eqStrings(seekArgs(index, i, 0), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
+            whileLoop = 1;
+            whileIndex = index;
+            return;
+        } else {
+            printf("Error! While loop is not declared properly! (missing 'do' at line %d)\n", index);
+            quitProgram();
+        }
+    } else if (eqStrings(currentCommand, "done")) {
+        if (!whileLoop) {
+            printf("Error! Unexpected 'done' operator at line %d!\n", index);
+            quitProgram();
+        }
+        if (checkWhileCondition()) currentLine = whileIndex;
+        else whileLoop = 0;
     } else {
         int flag = 0;
         int temp = 0;
@@ -119,7 +176,7 @@ void getCommand(int index) {
                 break;
             }
         }
-        if (flag == 0) {
+        if (!flag) {
             printf("Error! Command '%s' not found!\n", currentCommand);
             quitProgram();
         }
@@ -134,21 +191,13 @@ void getCommand(int index) {
                 else toAdd = atoi(args2);
             }
             temp += oper == '+' ? toAdd : -toAdd;
+        } else if (oper != '0') {
+            if (oper == '=') printf("Error! Wrong operator '==' at line %d col %d!\n", index, i);
+            else printf("Error! Wrong operator '%c' at line %d col %d!\n", oper, index, i);
+            quitProgram();
         }
         setVar(currentCommand, temp);
     }
-    /*
-    for (int j = i; script[index][j] != '\0'; j++) {
-        if (script[index][j] == ' ') {
-            
-            continue;
-        } else if (script[index][j] == '=') {
-            continue;
-        } else {
-            printf("[GC] Error! Unexpected symbol '%c' at line %d, column %d\n", script[index][j], index+1, j+1);
-            quitProgram();
-        }
-    } */
     return;
 }
 
@@ -221,8 +270,8 @@ int main(int argc, char **argv) {
 
     printf("\nSTARTING...\n\n");
     // Далее идёт выполнение скрипта
-    for (int i = 0; i < lineCount; i++) {
-        getCommand(i);
+    for (currentLine = 0; currentLine < lineCount; currentLine++) {
+        getCommand(currentLine);
     }
 
     return 0;
