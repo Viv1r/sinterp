@@ -12,7 +12,8 @@ long int varValues[VAR_STORAGE_SIZE];                   // Массив со з�
 char script[MAX_FILE_SIZE][MAX_LINE_LENGTH];            // Массив со строками скрипта
 int varCount = 0,                                       // Количество переменных
     lineCount = 0,                                      // Количество строк в скрипте
-    whileLoop = 0;                                      // Флаг, отвечающий за активность цикла while
+    whileLoop = 0,                                      // Флаг, отвечающий за активность цикла while
+    globalIndex = 0;                                    // Глобальный индекс для циклов, чтобы не заморачиваться с указателями
 
 void quitProgram() {
     printf("Goodbye!\n");
@@ -34,36 +35,57 @@ int hasLetters(char *str) {
 // Получение аргументов/параметров для операторов
 const char* seekArgs(int row, int col, int seekType) {
     char result[64] = "";
+    int i;
     if (seekType == 0) {    // Поиск наименования (буквы+цифры)
-        for (int i = col; script[row][i] != '\0'; i++) {
-            if (script[row][i] == ' ' && strlen(result) == 0) continue;
+        for (i = col; script[row][i] != '\0'; i++) {
+            if (script[row][i] == ' ') {
+                if (strlen(result) == 0) continue;
+                break;
+            }
             if (isalpha(script[row][i]) || isdigit(script[row][i])) {
                 result[strlen(result)] = script[row][i];
             } else {
-                printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                printf("[SA0] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
                 quitProgram();
             }
         }
     } else if (seekType == 1) {     // Поиск числа
-        for (int i = col; script[row][i] != '\0'; i++) {
+        for (i = col; script[row][i] != '\0'; i++) {
             if (script[row][i] == ' ' && strlen(result) == 0) continue;
             if (isdigit(script[row][i])) {
                 result[strlen(result)] = script[row][i];
             } else {
-                printf("[SA] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+                printf("[SA1] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
                 quitProgram();
             }
         }
     }
+    globalIndex = i;
     char* toreturn = result;
     return toreturn;
+}
+
+char seekOperator(int row, int col) {
+    int i;
+    for (i = col; script[row][i] != '\0'; i++) {
+        if (script[row][i] == ' ') continue;
+        if (script[row][i] == '+' || script[row][i] == '-') {
+            globalIndex = i+1;
+            return script[row][i];
+        } else {
+            printf("[SO] Error! Unexpected symbol '%c' at line %d, column %d\n", script[row][i], row+1, i+1);
+            quitProgram();
+        }
+    }
+    return '0';
 }
 
 // Получение команды для чтения (параметр index указывает, с какого индекса начать читать)
 void getCommand(int index) {
     char currentCommand[VAR_NAME_MEMORY] = "";
-    int cci = 0; // cci - Current Command Index
-    int i;       // индекс i сохраняю вне цикла, чтобы потом продолжить читать строку с него
+    int cci = 0;        // cci - Current Command Index
+    int i;              // индекс i сохраняю вне цикла, чтобы потом продолжить читать строку с него
+    globalIndex = 0;    // обнуляю global index на всякий случай
 
     // Делаю парсинг команды/переменной (выношу первое слово строки в переменную currentCommand)
     for (i = 0; (script[index][i] != ' ' || strlen(currentCommand) == 0); i++) {
@@ -85,12 +107,14 @@ void getCommand(int index) {
         // char args = seekArgs(index, i, 1);
     } else {
         int flag = 0;
+        int temp = 0;
         for (i; script[index][i] != '\0'; i++) {
             if (script[index][i] == '=') {
-                char temp[64];
-                strcpy(temp, seekArgs(index, i+1, 0));
-                if (hasLetters(temp)) setVar(currentCommand, getVar(temp));
-                else setVar(currentCommand, atoi(temp));
+                char tempstr[VAR_NAME_MEMORY];
+                strcpy(tempstr, seekArgs(index, i+1, 0));
+                i = globalIndex;
+                if (hasLetters(tempstr)) temp += getVar(tempstr);  // Присваиваем значение другой переменной
+                else temp += atoi(tempstr);                        // Присваиваем числовое значение
                 flag = 1; // Флаг, говорящий о том, что операция выполнена
                 break;
             }
@@ -99,6 +123,19 @@ void getCommand(int index) {
             printf("Error! Command '%s' not found!\n", currentCommand);
             quitProgram();
         }
+        char oper = seekOperator(index, i);
+        i = globalIndex;
+        if (oper == '+' || oper == '-') {
+            char args2[VAR_NAME_MEMORY];
+            strcpy(args2, seekArgs(index, i, 0));
+            int toAdd;
+            if (strlen(args2) > 0) {
+                if (hasLetters(args2)) toAdd = getVar(args2);  // Присваиваем значение другой переменной
+                else toAdd = atoi(args2);
+            }
+            temp += oper == '+' ? toAdd : -toAdd;
+        }
+        setVar(currentCommand, temp);
     }
     /*
     for (int j = i; script[index][j] != '\0'; j++) {
