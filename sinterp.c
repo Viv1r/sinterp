@@ -38,10 +38,12 @@ int is_operator(char c) {
 int check_while_cond() {
     int operand1, operand2;
     
-    if (has_letters(while_operand_1)) operand1 = get_var(while_operand_1);
+    if (has_letters(while_operand_1))
+    operand1 = get_var(while_operand_1);
     else operand1 = atoi(while_operand_1);
 
-    if (has_letters(while_operand_2)) operand2 = get_var(while_operand_2);
+    if (has_letters(while_operand_2))
+    operand2 = get_var(while_operand_2);
     else operand2 = atoi(while_operand_2);
 
     switch(while_operator) {
@@ -64,7 +66,7 @@ int eq_strings(char *str1, char *str2) {
 
 int has_letters(char *str) {
     for (int i = 0; i < strlen(str); i++) {
-        if isalpha(str[i]) return 1;
+        if (isalpha(str[i])) return 1;
     }
     return 0;
 }
@@ -157,17 +159,30 @@ void get_command(int index) {
     if (eq_strings(current_command, "read")) {
         char varname[VAR_NAME_MEMORY] = "";
         strcpy(varname, seek_args(index, i));
-        set_var(varname, read("Enter a number: "));
+        i = global_index;
+        if (strlen(seek_args(index, i)) == 0)
+            set_var(varname, read("Enter a number: "));
+        else {
+            printf("Error! Unexpected arguments at line %d, column %d\n", index+1, i+1);
+            quit_program();
+        }
     } else if (eq_strings(current_command, "write")) {
         char varname[VAR_NAME_MEMORY] = "";
         strcpy(varname, seek_args(index, i));
+        i = global_index;
+        if (strlen(seek_args(index, i)) == 0)
         write(varname);
+        else {
+            printf("Error! Unexpected arguments at line %d, column %d\n", index+1, i+1);
+            quit_program();
+        }
     } else if (eq_strings(current_command, "while")) {
         // Проверка на факт того, является ли цикл вложенным
         if (while_loop_active) {
             printf("Error! Nested loops are not allowed! (at line %d)\n", index+1);
             quit_program();
         }
+        // Поиск завершающего ключевого слова "done"
         if (!find_keyword(index+1, "done")) {
             printf("Error! Cannot activate the loop without a 'done' keyword!\n", index+1);
             quit_program();
@@ -181,8 +196,15 @@ void get_command(int index) {
         if (eq_strings(seek_args(index, i), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
             while_loop_active = 1;
             while_index = index;
-            if (!check_while_cond()) current_line = find_keyword(index+1, "done");
-            return;
+            i = global_index;
+            if (strlen(seek_args(index, i)) == 0) {
+                if (!check_while_cond()) current_line = find_keyword(index+1, "done");
+                return;
+            }
+            else {
+                printf("Error! Unexpected arguments at line %d, column %d\n", index+1, i+1);
+                quit_program();
+            }
         } else {
             printf("Error! While loop is not declared properly! (missing 'do' at line %d)\n", index+1);
             quit_program();
@@ -229,6 +251,11 @@ void get_command(int index) {
             quit_program();
         }
         set_var(current_command, temp);
+        i = global_index;
+        if (strlen(seek_args(index, i)) > 0) {
+            printf("Error! Unexpected arguments at line %d, column %d\n", index+1, i+1);
+            quit_program();
+        }
     }
     return;
 }
