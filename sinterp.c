@@ -26,6 +26,14 @@ void quit_program() {
     exit(0);
 }
 
+// Проверка символа на факт, является ли он оператором
+int is_operator(char c) {
+    char operators[5] = "=+-><";
+    for (int i = 0; i < 5; i++)
+    if (c == operators[i]) return 1;
+    return 0;
+}
+
 // Проверка условий для цикла while
 int check_while_cond() {
     int operand1, operand2;
@@ -69,6 +77,12 @@ const char* seek_args(int row, int col) {
         if (script[row][i] == ' ') {
             if (strlen(result) == 0) continue;
             break;
+        }
+        if (is_operator(script[row][i])) {
+            if (strlen(result) == 0) {
+                printf("Error! Operator '%c' without an operand at line %d, column %d\n", script[row][i], row+1, i+1);
+                quit_program();
+            } else break;
         }
         if (isalpha(script[row][i]) || isdigit(script[row][i])) {
             result[strlen(result)] = script[row][i];
