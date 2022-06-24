@@ -309,7 +309,10 @@ int read(char* title) {
 int main(int argc, char **argv) {
 
     FILE *fp;
-    fp = fopen(argv[1], "r");
+    if (!(fp = fopen(argv[1], "r"))) {
+        printf("File not found! Please check the filename.\n");
+        return 0;
+    }
     int index = 0;
     while(fgets(script[index], MAX_LINE_LENGTH, fp)) 
 	{
