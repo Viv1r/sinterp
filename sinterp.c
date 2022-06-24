@@ -194,11 +194,11 @@ void get_command(int index) {
         strcpy(while_operand_2, seek_args(index, i));
         i = global_index;
         if (eq_strings(seek_args(index, i), "do")) { // Проверка на наличие ключевого слова "do" для запуска цикла
-            while_loop_active = 1;
             while_index = index;
             i = global_index;
             if (strlen(seek_args(index, i)) == 0) {
                 if (!check_while_cond()) current_line = find_keyword(index+1, "done");
+                else while_loop_active = 1;
                 return;
             }
             else {
